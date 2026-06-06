@@ -14,14 +14,14 @@ const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: (val: bool
 
   const navItems = [
     { name: "Dashboard", icon: LayoutDashboardIcon, path: "/dashboard" },
-    { name: "Dashboard", icon: UserIcon, path: "/accounts" },
+    { name: "Accounts", icon: UserIcon, path: "/accounts" },
     { name: "Scheduler", icon: CalendarDaysIcon, path: "/schedule" },
     { name: "AI Composer", icon: Wand2Icon, path: "/ai-composer" },
 
   ]
 
   return (
-    <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col h-full transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0 ${isOpen ? "translate-x-0" : "-trnasform-x-full"}`} >
+    <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col h-full transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"}`} >
 
       {/* Logo */}
       <div>
@@ -48,7 +48,7 @@ const Sidebar = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: (val: bool
               onClick={() => setIsOpen(false)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded text-sm transition-all duration-150 border ${isActive ? "bg-red-50 text-red-600 border-red-100 " : "text-slate-500 hover:bg-slate-50 border-transparent hover:text-slate-700"} `}
             >
-              <item.icon className={'size-4.5 shrink-0 &{isActive ? "text-red-500" : "text-slate-500}'} />
+              <item.icon className={'size-4.5 shrink-0 ${isActive ? "text-red-500" : "text-slate-500}'} />
               {item.name}
               {isActive && <span className="ml-auto w-[5px] h-5 rounded-full bg-red-500" />}
             </NavLink>

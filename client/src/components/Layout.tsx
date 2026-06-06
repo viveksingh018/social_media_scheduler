@@ -5,7 +5,7 @@ import { MenuIcon } from 'lucide-react'
 
 const pageTitles: Record<string, string> = {
   "/dashboard" : "Dashboard", 
-  "/account" : "Social Accounts",
+  "/accounts" : "Social Accounts",
   "/schedule" : "Post Scheduler",
   "/ai-composer" : "AI Composer"
 }
@@ -36,7 +36,7 @@ const Layout = () => {
           </button>
           <div>
             <h1 className='text-slate-900'>{title}</h1>
-            <p className='text-sm text-slate-400 hidden sm:block'>Mange and automate your social presence</p>
+            <p className='text-sm text-slate-400 hidden sm:block'>Manage and automate your social presence</p>
             
           </div>
         </header>
