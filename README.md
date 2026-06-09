@@ -2,6 +2,8 @@
 
 A social media scheduler web application built with React, Vite, TypeScript, and Tailwind CSS.
 
+**Status:** Frontend Complete — 
+
 ## Project Work
 
 - Created the frontend application inside `client/`
@@ -72,4 +74,4 @@ npm run build
 
 ## Notes
 
-This README reflects the current frontend project work and structure. As development continues, feature details and usage instructions will be expanded.
+This README reflects the current frontend project work and structure. The frontend has been completed. As development continues, feature details, backend integration, deployment instructions, and usage documentation will be expanded.
