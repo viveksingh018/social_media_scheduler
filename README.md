@@ -2,19 +2,31 @@
 
 A social media scheduler web application built with React, Vite, TypeScript, and Tailwind CSS.
 
-## Current Project Status
+## Project Work
 
-- Frontend scaffold created in `client/`
-- React + TypeScript app with Vite
-- Tailwind CSS configured for styling
-- Core pages implemented:
+- Created the frontend application inside `client/`
+- Built the main pages and routes:
   - `Home`
   - `Dashboard`
   - `Accounts`
   - `Scheduler`
   - `AIComposer`
   - `Login`
-- Layout components include a responsive sidebar and shared app structure
+- Implemented a responsive layout with:
+  - `Sidebar`
+  - `Layout`
+  - `PlatformPickerModal`
+- Developed home section components for marketing pages:
+  - `Hero`
+  - `Features`
+  - `HowItWorks`
+  - `Pricing`
+  - `Testimonials`
+  - `Footer`
+- Added account list and platform selection UI components
+- Configured Tailwind CSS for styling and responsive design
+- Integrated icon libraries with Lucide and Simple Icons
+- Set up Vite for fast development and build performance
 
 ## Tech Stack
 
@@ -23,9 +35,10 @@ A social media scheduler web application built with React, Vite, TypeScript, and
 - Vite 4
 - Tailwind CSS 4
 - React Router DOM 7
-- Lucide icons and Simple Icons
+- Lucide icons
+- Simple Icons
 
-## Development
+## Getting Started
 
 From the workspace root:
 
@@ -35,7 +48,7 @@ npm install
 npm run dev
 ```
 
-Then open the local Vite URL shown in the terminal.
+Open the local Vite URL shown in the terminal.
 
 ## Build
 
@@ -44,6 +57,19 @@ cd client
 npm run build
 ```
 
+## Project Structure
+
+- `client/`
+  - `src/`
+    - `components/` - reusable UI components and layout
+    - `pages/` - route pages for the application
+    - `assets/` - asset helpers and imports
+    - `main.tsx` - application entry point
+    - `App.tsx` - app routing and layout
+  - `public/` - static public assets
+  - `index.html` - Vite HTML template
+  - `vite.config.ts` - Vite configuration
+
 ## Notes
 
-This README is intentionally kept concise for the current project stage. More details, features, and usage instructions will be added as the project progresses.
+This README reflects the current frontend project work and structure. As development continues, feature details and usage instructions will be expanded.
