@@ -24,10 +24,69 @@ const delay = (ms: number): Promise<void> => {
   return new Promise((resolve) => setTimeout(resolve, ms));
 };
 
+// Helper function: Generate image with retry + timeout (AbortController)
+const generateImageWithRetry = async (imagePrompt: string): Promise<string> => {
+  // Validate HUGGINGFACE_API_KEY before use
+  const hfKey = process.env.HUGGINGFACE_API_KEY;
+  if (!hfKey) {
+    throw new Error("HUGGINGFACE_API_KEY is missing. Please add it to your .env file.");
+  }
+
+  const hf = new HfInference(hfKey);
+  const maxRetries = 3;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    // Fix 1: AbortController — 30 second timeout per attempt (prevents infinite hang)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
+    try {
+      // Fix 2: Pass signal for timeout + remove unnecessary cast (HF v4.13+ returns Blob directly)
+      const imageBlob = await hf.textToImage(
+        {
+          model: "stabilityai/stable-diffusion-xl-base-1.0",
+          inputs: imagePrompt,
+        },
+        { signal: controller.signal }
+      );
+
+      clearTimeout(timeout);
+
+      // Convert Blob to Buffer for Cloudinary upload
+      const arrayBuffer = await imageBlob.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      // Upload to Cloudinary and return URL
+      const uploadResult = await uploadToCloudinary(buffer);
+      return uploadResult.secure_url;
+
+    } catch (err: any) {
+      clearTimeout(timeout);
+
+      // Last attempt — throw immediately, don't delay
+      if (attempt === maxRetries) {
+        throw new Error(`Image generation failed after ${maxRetries} attempts: ${err?.message}`);
+      }
+
+      // Wait before retry
+      console.log(`Attempt ${attempt} failed, retrying in 5s... (${err?.message})`);
+      await delay(5000);
+    }
+  }
+
+  throw new Error("Image generation failed unexpectedly.");
+};
+
 // Generate post
 // POST /api/posts/generate
 export const generatePost = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    // Fix 3: Guard req.user before dereferencing _id
+    if (!req.user) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
     const { prompt, tone, generateImage } = req.body;
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -74,42 +133,11 @@ export const generatePost = async (req: AuthRequest, res: Response): Promise<voi
     // Option 1: AI generate image using Hugging Face
     if (generateImage) {
       try {
-        const hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
-
-        // Retry up to 3 times if model is loading
-        let imageBlob: Blob | null = null;
-        const maxRetries = 3;
-
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-          try {
-            imageBlob = await hf.textToImage({
-              model: "stabilityai/stable-diffusion-xl-base-1.0",
-              inputs: imagePrompt,
-            }) as unknown as Blob;
-            break; // Success — exit retry loop
-          } catch (err: any) {
-            if (attempt < maxRetries) {
-              console.log(`Image generation attempt ${attempt} failed, retrying in 5s...`);
-              await delay(5000); // Wait 5 seconds before retry
-            } else {
-              throw err; // All retries failed — throw to outer catch
-            }
-          }
-        }
-
-        if (imageBlob) {
-          // Convert Blob to Buffer for Cloudinary upload
-          const arrayBuffer = await (imageBlob as Blob).arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-
-          // Upload buffer to Cloudinary
-          const uploadResult = await uploadToCloudinary(buffer);
-          mediaUrl = uploadResult.secure_url;
-          mediaType = "image";
-        }
-
+        // Generate image and upload to Cloudinary — returns URL directly
+        mediaUrl = await generateImageWithRetry(imagePrompt);
+        mediaType = "image";
       } catch (error: any) {
-        // Image generation failed — post will be returned without image
+        // Image generation failed — post will be saved without image
         console.error("Image generation/upload error:", error?.message || error);
       }
     }
@@ -117,7 +145,6 @@ export const generatePost = async (req: AuthRequest, res: Response): Promise<voi
     // Option 2: User manually uploaded an image
     if (req.file && !generateImage) {
       try {
-        // Upload user's image buffer directly to Cloudinary
         const uploadResult = await uploadToCloudinary(req.file.buffer);
         mediaUrl = uploadResult.secure_url;
         mediaType = "image";
@@ -149,6 +176,12 @@ export const generatePost = async (req: AuthRequest, res: Response): Promise<voi
 // GET /api/posts/generations
 export const getGenerations = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    // Guard req.user before dereferencing _id
+    if (!req.user) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
     const generations = await Generation.find({ user: req.user._id }).sort({ createdAt: -1 });
     res.status(200).json(generations);
   } catch (error: any) {
@@ -161,6 +194,12 @@ export const getGenerations = async (req: AuthRequest, res: Response): Promise<v
 // GET /api/posts
 export const getPosts = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    // Guard req.user before dereferencing _id
+    if (!req.user) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
     res.status(200).json({ message: "Posts coming soon" });
   } catch (error: any) {
     console.error("getPosts error:", error?.message || error);
@@ -172,6 +211,12 @@ export const getPosts = async (req: AuthRequest, res: Response): Promise<void> =
 // POST /api/posts
 export const schedulePost = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    // Guard req.user before dereferencing _id
+    if (!req.user) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
     res.status(200).json({ message: "Schedule post coming soon" });
   } catch (error: any) {
     console.error("schedulePost error:", error?.message || error);
