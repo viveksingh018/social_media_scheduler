@@ -111,7 +111,7 @@ export const syncAccounts = async (req: AuthRequest, res: Response): Promise<voi
       )
       syncedAccounts.push(account)
     }
-    res.json(syncAccounts)
+    res.json(syncedAccounts)
 
   } catch (error: any) {
     res.status(500).json({ message: error?.message || "Server error"})
