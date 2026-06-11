@@ -24,9 +24,9 @@ const delay = (ms: number): Promise<void> => {
   return new Promise((resolve) => setTimeout(resolve, ms));
 };
 
-// Helper function: Generate image with retry (non-blocking approach)
+// Helper function: Generate image with retry + timeout (AbortController)
 const generateImageWithRetry = async (imagePrompt: string): Promise<string> => {
-  // Fix 1: Validate HUGGINGFACE_API_KEY before use
+  // Validate HUGGINGFACE_API_KEY before use
   const hfKey = process.env.HUGGINGFACE_API_KEY;
   if (!hfKey) {
     throw new Error("HUGGINGFACE_API_KEY is missing. Please add it to your .env file.");
@@ -36,11 +36,21 @@ const generateImageWithRetry = async (imagePrompt: string): Promise<string> => {
   const maxRetries = 3;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    // Fix 1: AbortController — 30 second timeout per attempt (prevents infinite hang)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
     try {
-      const imageBlob = await hf.textToImage({
-        model: "stabilityai/stable-diffusion-xl-base-1.0",
-        inputs: imagePrompt,
-      }) as unknown as Blob;
+      // Fix 2: Pass signal for timeout + remove unnecessary cast (HF v4.13+ returns Blob directly)
+      const imageBlob = await hf.textToImage(
+        {
+          model: "stabilityai/stable-diffusion-xl-base-1.0",
+          inputs: imagePrompt,
+        },
+        { signal: controller.signal }
+      );
+
+      clearTimeout(timeout);
 
       // Convert Blob to Buffer for Cloudinary upload
       const arrayBuffer = await imageBlob.arrayBuffer();
@@ -51,11 +61,14 @@ const generateImageWithRetry = async (imagePrompt: string): Promise<string> => {
       return uploadResult.secure_url;
 
     } catch (err: any) {
-      // Fix 2: Last attempt — throw immediately, don't delay
+      clearTimeout(timeout);
+
+      // Last attempt — throw immediately, don't delay
       if (attempt === maxRetries) {
         throw new Error(`Image generation failed after ${maxRetries} attempts: ${err?.message}`);
       }
-      // Model still loading — wait before retry
+
+      // Wait before retry
       console.log(`Attempt ${attempt} failed, retrying in 5s... (${err?.message})`);
       await delay(5000);
     }
@@ -68,11 +81,17 @@ const generateImageWithRetry = async (imagePrompt: string): Promise<string> => {
 // POST /api/posts/generate
 export const generatePost = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    // Fix 3: Guard req.user before dereferencing _id
+    if (!req.user) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
     const { prompt, tone, generateImage } = req.body;
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      res.status(500).json({ message: "Gemini API Key is missing. Please add it to your server/.env file." });
+      res.status(400).json({ message: "Gemini API Key is missing. Please add it to your server/.env file." });
       return;
     }
 
@@ -157,6 +176,12 @@ export const generatePost = async (req: AuthRequest, res: Response): Promise<voi
 // GET /api/posts/generations
 export const getGenerations = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    // Guard req.user before dereferencing _id
+    if (!req.user) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
     const generations = await Generation.find({ user: req.user._id }).sort({ createdAt: -1 });
     res.status(200).json(generations);
   } catch (error: any) {
@@ -169,6 +194,12 @@ export const getGenerations = async (req: AuthRequest, res: Response): Promise<v
 // GET /api/posts
 export const getPosts = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    // Guard req.user before dereferencing _id
+    if (!req.user) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
     res.status(200).json({ message: "Posts coming soon" });
   } catch (error: any) {
     console.error("getPosts error:", error?.message || error);
@@ -180,6 +211,12 @@ export const getPosts = async (req: AuthRequest, res: Response): Promise<void> =
 // POST /api/posts
 export const schedulePost = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    // Guard req.user before dereferencing _id
+    if (!req.user) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
     res.status(200).json({ message: "Schedule post coming soon" });
   } catch (error: any) {
     console.error("schedulePost error:", error?.message || error);
