@@ -17,75 +17,84 @@ export const initScheduler = () => {
       console.log(`Scheduler tick at ${now.toISOString()} - due posts: ${postsToPublish.length}`);
 
       for (const post of postsToPublish) {
-        // Fix 1: Atomic claim — status "publishing" set karo pehle
-        // Taaki overlapping cron ticks ya multiple server instances same post na uthayein
+        // Atomic claim — status "publishing" set karo pehle
         const claimed = await Post.findOneAndUpdate(
-          { _id: post._id, status: "scheduled" }, // sirf "scheduled" wale uthao
-          { $set: { status: "publishing" } },      // turant "publishing" mark karo
+          { _id: post._id, status: "scheduled" },
+          { $set: { status: "publishing" } },
           { new: true }
         );
 
-        // Agar kisi aur cron tick ne already claim kar liya — skip karo
         if (!claimed) {
           console.log(`Post ${post._id} already claimed by another process, skipping.`);
           continue;
         }
 
-        let payload: any;
-        try {
-          // Find all connected Zernio accounts for this post's platforms
-          const accounts = await Account.find({
-            user: claimed.user,
-            platform: { $in: claimed.platform },
-            status: "connected",
-            zernioAccountId: { $exists: true },
-          });
+        // Find all connected Zernio accounts for this post's platforms
+        const accounts = await Account.find({
+          user: claimed.user,
+          platform: { $in: claimed.platform },
+          status: "connected",
+          zernioAccountId: { $exists: true },
+        });
 
-          if (accounts.length === 0) {
-            console.log(`No connected Zernio accounts found for post ${claimed._id}`);
-            await Post.findByIdAndUpdate(claimed._id, { status: "failed" });
-            continue;
-          }
+        if (accounts.length === 0) {
+          console.log(`No connected Zernio accounts found for post ${claimed._id}`);
+          await Post.findByIdAndUpdate(claimed._id, { status: "failed" });
+          continue;
+        }
 
-          const zernioPlatforms = accounts.map((acc) => ({
-            platform: acc.platform as any,
-            accountId: acc.zernioAccountId,
-          }));
+        console.log(`Publishing post ${claimed._id} to ${accounts.length} platform(s) — media: ${claimed.mediaUrl || "none"}`);
 
-          payload = {
+        // Per-platform publish — har platform ke liye alag Zernio call
+        let allSuccess = true;
+        const publishedPlatforms: string[] = [];
+
+        for (const account of accounts) {
+          const singlePayload = {
             content: claimed.content,
             publishNow: true,
             ...(claimed.mediaUrl ? { mediaUrls: [claimed.mediaUrl] } : {}),
-            platforms: zernioPlatforms,
+            platforms: [
+              {
+                platform: account.platform,
+                accountId: account.zernioAccountId,
+              },
+            ],
           };
 
-          console.log(`Publishing post ${claimed._id} to Zernio with media: ${claimed.mediaUrl || "none"}`);
+          try {
+            const response = await zernio.posts.createPost({
+              body: singlePayload,
+            });
 
-          const response = await zernio.posts.createPost({
-            body: payload,
-          });
+            const publishedPost = (response.data as any)?.post || response.data;
 
-          const publishedPost = (response.data as any)?.post || response.data;
+            if (!publishedPost) {
+              throw new Error("No post object in Zernio response");
+            }
 
-          if (!publishedPost) {
-            throw new Error("Failed to get post object from Zernio response");
+            publishedPlatforms.push(account.platform);
+            console.log(`  ✅ ${account.platform}: ${publishedPost._id || publishedPost.id}`);
+
+          } catch (err: any) {
+            allSuccess = false;
+            console.error(`  ❌ ${account.platform} failed:`, err?.response?.data || err?.message || err);
           }
+        }
 
-          console.log(`Zernio post created: ${publishedPost._id || publishedPost.id}`);
-
+        // Update post status + activity log
+        if (allSuccess) {
           await Post.findByIdAndUpdate(claimed._id, { status: "published" });
 
           await ActivityLog.create({
             user: claimed.user,
             actionType: "POST_PUBLISHED",
-            description: `Published post to ${accounts.map((a) => a.platform).join(", ")}`,
+            description: `Published post to ${publishedPlatforms.join(", ")}`,
             relatedPost: claimed._id,
           });
-
-        } catch (err: any) {
-          console.error(`Failed to publish post ${claimed._id}:`, err?.response?.data || err?.message || err);
-          console.error("Zernio publish payload:", JSON.stringify(payload, null, 2));
+        } else {
           await Post.findByIdAndUpdate(claimed._id, { status: "failed" });
+          console.error(`Post ${claimed._id} failed. Success: ${publishedPlatforms.join(", ") || "none"}`);
         }
       }
 
