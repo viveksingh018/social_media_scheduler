@@ -18,28 +18,31 @@ const getMediaUrlForPlatform = (
   // Only transform Cloudinary URLs
   if (!mediaUrl.includes("res.cloudinary.com")) return mediaUrl;
 
-  // Instagram requires aspect ratio between 0.75 and 1.91
-  // Square 1:1 (1080x1080) is the safest
+  // SAFER transformations — no g_auto (paid only), no fancy stuff
+  // Use f_auto,q_auto for format/quality optimization (free tier supported)
+  // Use g_center for always-works center crop
+
   if (platform === "instagram") {
+    // Instagram: 1:1 square, 1080x1080
     return mediaUrl.replace(
       "/upload/",
-      "/upload/ar_1:1,c_fill,g_auto,w_1080,h_1080/"
+      "/upload/f_auto,q_auto,w_1080,h_1080,c_fill,g_center/"
     );
   }
 
-  // LinkedIn accepts 1.91:1 landscape
   if (platform === "linkedin") {
+    // LinkedIn: 1200x627 landscape (1.91:1)
     return mediaUrl.replace(
       "/upload/",
-      "/upload/ar_1.91:1,c_fill,g_auto,w_1200,h_627/"
+      "/upload/f_auto,q_auto,w_1200,h_627,c_fill,g_center/"
     );
   }
 
-  // Facebook: similar to Instagram
   if (platform === "facebook") {
+    // Facebook: 1:1 square
     return mediaUrl.replace(
       "/upload/",
-      "/upload/ar_1:1,c_fill,g_auto,w_1080,h_1080/"
+      "/upload/f_auto,q_auto,w_1080,h_1080,c_fill,g_center/"
     );
   }
 
@@ -86,17 +89,20 @@ export const initScheduler = () => {
 
         console.log(`Publishing post ${claimed._id} to ${accounts.length} platform(s) — media: ${claimed.mediaUrl || "none"}`);
 
-        // Per-platform publish — har platform ke liye alag Zernio call + alag media URL
+        // Per-platform publish
         let allSuccess = true;
         const publishedPlatforms: string[] = [];
+        const failedPlatforms: string[] = [];
 
         for (const account of accounts) {
-          // Platform-specific media URL (Instagram ko 1:1, LinkedIn ko 1.91:1)
+          // Platform-specific media URL
           const platformMediaUrl = getMediaUrlForPlatform(
             claimed.mediaUrl,
             claimed.mediaType as "image" | "video" | undefined,
             account.platform
           );
+
+          console.log(`  → ${account.platform} media URL: ${platformMediaUrl || "none"}`);
 
           const mediaItems = platformMediaUrl
             ? [{ type: (claimed.mediaType as "image" | "video") || "image", url: platformMediaUrl }]
@@ -133,6 +139,7 @@ export const initScheduler = () => {
 
           } catch (err: any) {
             allSuccess = false;
+            failedPlatforms.push(account.platform);
             console.error(`  ❌ ${account.platform} failed:`, err?.response?.data || err?.message || err);
           }
         }
@@ -148,7 +155,7 @@ export const initScheduler = () => {
           });
         } else {
           await Post.findByIdAndUpdate(claimed._id, { status: "failed" });
-          console.error(`Post ${claimed._id} failed. Success: ${publishedPlatforms.join(", ") || "none"}`);
+          console.error(`Post ${claimed._id} failed. Success: ${publishedPlatforms.join(", ") || "none"} | Failed: ${failedPlatforms.join(", ")}`);
         }
       }
 
