@@ -6,6 +6,7 @@ import {
   Wand2Icon,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const Sidebar = ({
   isOpen,
@@ -14,41 +15,14 @@ const Sidebar = ({
   isOpen: boolean;
   setIsOpen: (val: boolean) => void;
 }) => {
-  // Temporary user data
-  const { logout, user } = {
-    logout: () => {
-      window.location.href = "/";
-    },
-    user: {
-      name: "Vivek Singh",
-      email: "vivek@test.com",
-    },
-  };
-
+  const { logout, user } = useAuth();
   const location = useLocation();
 
-  // Sidebar navigation items
   const navItems = [
-    {
-      name: "Dashboard",
-      icon: LayoutDashboardIcon,
-      path: "/dashboard",
-    },
-    {
-      name: "Accounts",
-      icon: UserIcon,
-      path: "/accounts",
-    },
-    {
-      name: "Scheduler",
-      icon: CalendarDaysIcon,
-      path: "/schedule",
-    },
-    {
-      name: "AI Composer",
-      icon: Wand2Icon,
-      path: "/ai-composer",
-    },
+    { name: "Dashboard", icon: LayoutDashboardIcon, path: "/dashboard" },
+    { name: "Accounts", icon: UserIcon, path: "/accounts" },
+    { name: "Scheduler", icon: CalendarDaysIcon, path: "/schedule" },
+    { name: "AI Composer", icon: Wand2Icon, path: "/ai-composer" },
   ];
 
   return (
@@ -62,11 +36,7 @@ const Sidebar = ({
       ========================== */}
       <div className="p-4">
         <div className="flex items-center gap-1.5 text-xl tracking-tight text-slate-800">
-          <img
-            src="/logo.svg"
-            alt="logo"
-            className="size-4"
-          />
+          <img src="/logo.svg" alt="logo" className="size-4" />
           Scheduler
         </div>
       </div>
@@ -85,8 +55,7 @@ const Sidebar = ({
       ========================== */}
       <nav className="flex-1 space-y-1 px-3">
         {navItems.map((item) => {
-          const isActive =
-            location.pathname === item.path;
+          const isActive = location.pathname === item.path;
 
           return (
             <NavLink
@@ -100,19 +69,12 @@ const Sidebar = ({
                   : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700"
               }`}
             >
-              {/* Nav Icon */}
               <item.icon
                 className={`size-4 shrink-0 ${
-                  isActive
-                    ? "text-red-500"
-                    : "text-slate-500"
+                  isActive ? "text-red-500" : "text-slate-500"
                 }`}
               />
-
-              {/* Nav Text */}
               {item.name}
-
-              {/* Active Indicator */}
               {isActive && (
                 <span className="ml-auto h-5 w-[5px] rounded-full bg-red-500" />
               )}
@@ -125,22 +87,24 @@ const Sidebar = ({
           User Footer
       ========================== */}
       <div className="border-t border-slate-100 p-4">
-        {/* User Info */}
-        <div className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-slate-50">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-red-400 to-pink-400 text-sm font-medium text-white">
-            {user.name.charAt(0).toUpperCase() || "U"}
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm text-slate-800">
-              {user.name}
+        {/* Fix 1: user null check — user hai tabhi render karo */}
+        {user && (
+          <div className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-slate-50">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-red-400 to-pink-400 text-sm font-medium text-white">
+              {/* Fix 2: optional chaining — user null ho toh "U" fallback */}
+              {user?.name?.charAt(0).toUpperCase() ?? "U"}
             </div>
 
-            <div className="truncate text-sm text-slate-400">
-              {user.email}
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm text-slate-800">
+                {user?.name}
+              </div>
+              <div className="truncate text-sm text-slate-400">
+                {user?.email}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Logout Button */}
         <button

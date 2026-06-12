@@ -7,12 +7,7 @@ import {
   TrendingUpIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-
-import {
-  dummyAccountsData,
-  dummyActivityData,
-  dummyPostsData,
-} from "../assets/assets";
+import api from "../api/axios";
 
 const Dashboard = () => {
   // Dashboard statistics
@@ -29,11 +24,11 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [postRes, accountsRes, activityRes] = [
-          { data: dummyPostsData },
-          { data: dummyAccountsData },
-          { data: dummyActivityData },
-        ];
+        const [postRes, accountsRes, activityRes] = await Promise.all([
+          api.get("/api/posts"),           
+          api.get("/api/accounts"),        
+          api.get("/api/activity"),        
+        ]);
 
         const posts = postRes.data;
 
@@ -54,6 +49,7 @@ const Dashboard = () => {
 
         // Set activity feed data
         setActivities(activityRes.data);
+
       } catch (error: any) {
         console.error("Error fetching dashboard data:", error);
       }
@@ -93,7 +89,6 @@ const Dashboard = () => {
         <h2 className="text-2xl text-slate-900">
           Good morning!
         </h2>
-
         <p className="text-slate-500">
           Here's what's happening with your social accounts today.
         </p>
@@ -135,10 +130,7 @@ const Dashboard = () => {
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         {/* Header */}
         <div className="flex items-center justify-between border-b px-6 py-4">
-          <h2 className="text-slate-900">
-            Recent Activity
-          </h2>
-
+          <h2 className="text-slate-900">Recent Activity</h2>
           <span className="text-sm text-slate-400">
             {activities.length} events
           </span>
@@ -150,11 +142,7 @@ const Dashboard = () => {
             <div className="mb-3 flex size-12 items-center justify-center rounded-xl bg-slate-100">
               <ActivityIcon className="size-6 text-slate-400" />
             </div>
-
-            <p className="text-slate-500">
-              No activity yet
-            </p>
-
+            <p className="text-slate-500">No activity yet</p>
             <p className="mt-1 text-sm text-slate-400">
               Connect accounts and schedule posts to see events here.
             </p>
@@ -177,14 +165,10 @@ const Dashboard = () => {
                     <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
                       Published
                     </span>
-
                     <span className="shrink-0 text-xs text-slate-400">
-                      {new Date(
-                        activity.createdAt
-                      ).toLocaleString()}
+                      {new Date(activity.createdAt).toLocaleString()}
                     </span>
                   </div>
-
                   <p className="text-sm text-slate-600">
                     {activity.description}
                   </p>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { dummyPostsData, PLATFORMS } from "../assets/assets";
+import { PLATFORMS } from "../assets/assets";
 import {
   ArrowRightIcon,
   CalendarDaysIcon,
@@ -8,9 +8,10 @@ import {
   SendIcon,
   XIcon,
 } from "lucide-react";
+import api from "../api/axios";
+import toast from "react-hot-toast";
 
 const Scheduler = () => {
-  // State Management
   const [posts, setPosts] = useState<any[]>([]);
   const [content, setContent] = useState("");
   const [scheduledDate, setScheduledDate] = useState("");
@@ -19,67 +20,79 @@ const Scheduler = () => {
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Fetch dummy posts (with auto-refresh for demo)
   const fetchPosts = async () => {
-    setPosts(dummyPostsData);
+    try {
+      const { data } = await api.get("/api/posts");
+      setPosts(data);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || error.message);
+    }
   };
 
   useEffect(() => {
     fetchPosts();
-
-    const interval = setInterval(fetchPosts, 1000);
+    const interval = setInterval(fetchPosts, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // Filter posts
   const scheduled = posts.filter((p) => p.status === "scheduled");
   const published = posts.filter((p) => p.status === "published");
 
-  // Toggle platform selection
   const togglePlatform = (id: string) => {
     setSelectedPlatforms((prev) =>
-      prev.includes(id)
-        ? prev.filter((p) => p !== id)
-        : [...prev, id]
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
     );
   };
 
-  // Handle post scheduling
   const handleSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!content.trim() || !scheduledDate || !scheduledTime || selectedPlatforms.length === 0) {
-      alert("Please fill all required fields and select at least one platform.");
+    if (selectedPlatforms.length === 0) {
+      toast.error("Select at least one platform");
       return;
     }
 
+    if (!scheduledDate || !scheduledTime) {
+      toast.error("Select date and time");
+      return;
+    }
+
+    if (selectedPlatforms.includes("instagram") && !mediaFile) {
+      toast.error("Instagram requires an image or video");
+      return;
+    }
+
+    const scheduledFor = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
+
+    console.log("mediaFile:", mediaFile);
+    console.log("mediaFile name:", mediaFile?.name);
+
+    const formData = new FormData();
+    formData.append("content", content);
+    formData.append("scheduledFor", scheduledFor);
+    formData.append("status", "scheduled");
+    // Fix: "platform" — Post model ka field naam
+    formData.append("platform", JSON.stringify(selectedPlatforms));
+    if (mediaFile) formData.append("media", mediaFile);
+
     setLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      const newPost = {
-        _id: `post_${Date.now()}`,
-        content: content.trim(),
-        platforms: [...selectedPlatforms],
-        scheduledFor: `${scheduledDate}T${scheduledTime}`,
-        mediaType: mediaFile
-          ? mediaFile.type.startsWith("image/") ? "image" : "video"
-          : null,
-        status: "scheduled",
-        updatedAt: new Date().toISOString(),
-      };
-
-      setPosts((prev) => [...prev, newPost]);
-
-      // Reset form
+    try {
+      await api.post("/api/posts", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success("Post scheduled!");
       setContent("");
       setScheduledDate("");
       setScheduledTime("");
       setSelectedPlatforms([]);
       setMediaFile(null);
-
+      fetchPosts();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || error.message);
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   return (
@@ -105,11 +118,10 @@ const Scheduler = () => {
                       key={p.id}
                       type="button"
                       onClick={() => togglePlatform(p.id)}
-                      className={`flex items-center gap-1.5 p-3 rounded-md border transition-all duration-150 ${
-                        isActive
+                      className={`flex items-center gap-1.5 p-3 rounded-md border transition-all duration-150 ${isActive
                           ? "bg-red-50 border-red-200 text-red-500 scale-105"
                           : "border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50"
-                      }`}
+                        }`}
                     >
                       <p.icon className="size-4.5" />
                     </button>
@@ -132,9 +144,8 @@ const Scheduler = () => {
                 onChange={(e) => setContent(e.target.value)}
               />
               <div
-                className={`text-right text-xs mt-1 font-medium ${
-                  content.length > 270 ? "text-red-500" : "text-slate-400"
-                }`}
+                className={`text-right text-xs mt-1 font-medium ${content.length > 270 ? "text-red-500" : "text-slate-400"
+                  }`}
               >
                 {content.length}/280
               </div>
@@ -266,9 +277,12 @@ const Scheduler = () => {
                 <div key={post._id} className="px-5 py-4 hover:bg-slate-50/60 transition-colors">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex gap-1.5 items-center">
-                      {post.platforms.map((pl: string) => {
+                      {/* Fix: post.platform — model ka field naam */}
+                      {(post.platform || []).map((pl: string) => {
                         const meta = PLATFORMS.find((p) => p.id === pl);
-                        return meta ? <meta.icon key={pl} className="size-3.5 text-slate-400" /> : null;
+                        return meta ? (
+                          <meta.icon key={pl} className="size-3.5 text-slate-400" />
+                        ) : null;
                       })}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-slate-400">
@@ -307,9 +321,12 @@ const Scheduler = () => {
                 <div key={post._id} className="px-5 py-4 hover:bg-slate-50/60 transition-colors">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex gap-1.5 items-center">
-                      {post.platforms.map((pl: string) => {
+                      {/* Fix: post.platform — model ka field naam */}
+                      {(post.platform || []).map((pl: string) => {
                         const meta = PLATFORMS.find((p) => p.id === pl);
-                        return meta ? <meta.icon key={pl} className="size-3.5 text-slate-400" /> : null;
+                        return meta ? (
+                          <meta.icon key={pl} className="size-3.5 text-slate-400" />
+                        ) : null;
                       })}
                     </div>
                     <div className="flex items-center gap-2">

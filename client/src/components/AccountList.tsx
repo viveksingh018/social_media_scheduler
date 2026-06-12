@@ -11,31 +11,23 @@ interface AccountListProps {
   onDisconnect: (accountId: string) => Promise<void>;
 }
 
-const AccountList = ({
-  accounts,
-  onDisconnect,
-}: AccountListProps) => {
+const AccountList = ({ accounts, onDisconnect }: AccountListProps) => {
   const handleDisconnect = async (accountId: string) => {
     const confirm = window.confirm(
       "Are you sure want to disconnect this account?"
     );
-
     if (!confirm) return;
-
     await onDisconnect(accountId);
   };
 
+  // Empty state
   if (accounts.length === 0) {
     return (
       <div className="bg-white rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center py-20 px-6">
         <div className="size-14 bg-slate-50 rounded-2xl flex items-center justify-center">
           <PlusIcon className="size-6 text-slate-500 opacity-50" />
         </div>
-
-        <p className="text-slate-700 text-lg">
-          No accounts connected
-        </p>
-
+        <p className="text-slate-700 text-lg">No accounts connected</p>
         <p className="text-sm text-slate-400 mt-1 max-w-xs text-center">
           Connect your first social platform to start scheduling and automating
         </p>
@@ -46,51 +38,45 @@ const AccountList = ({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {accounts.map((account, index) => {
-        const meta = PLATFORMS.find(
-          (p) => p.id === account.platform
-        );
+        const meta = PLATFORMS.find((p) => p.id === account.platform);
 
+        // Skip if platform not found in PLATFORMS config
         if (!meta) return null;
 
         return (
           <div
-            key={index}
+            key={account._id || index} // Fix 1: _id use karo, fallback index
             className="group bg-white border border-slate-200 rounded-2xl p-5 flex items-center gap-4 hover:border-slate-300"
           >
+            {/* Platform Icon */}
             <div className="size-12 bg-slate-50 rounded-xl flex items-center justify-center shrink-0">
               <meta.icon className="size-6 text-slate-500" />
             </div>
 
+            {/* Account Info */}
             <div className="flex-1 min-w-0">
-              <div className="text-slate-900 truncate">
-                {account.handle}
-              </div>
-
-              <div className="text-sm text-slate-500 mt-0.5">
-                {meta.name}
-              </div>
+              <div className="text-slate-900 truncate">{account.handle}</div>
+              <div className="text-sm text-slate-500 mt-0.5">{meta.name}</div>
             </div>
 
+            {/* Connection Status */}
             <div className="flex items-center gap-1.5 shrink-0">
               {account.status === "connected" ? (
                 <>
                   <CheckCircleIcon className="size-4 text-emerald-500" />
-                  <span className="text-xs text-emerald-600">
-                    Connected
-                  </span>
+                  <span className="text-xs text-emerald-600">Connected</span>
                 </>
               ) : (
                 <>
                   <AlertCircleIcon className="size-4 text-amber-500" />
-                  <span className="text-xs text-amber-600">
-                    Disconnected
-                  </span>
+                  <span className="text-xs text-amber-600">Disconnected</span>
                 </>
               )}
             </div>
 
+            {/* Disconnect Button */}
             <button
-              onClick={() => handleDisconnect(account._id)}
+              onClick={() => account._id && handleDisconnect(account._id)} // Fix 2: _id guard
               title="Disconnect Account"
               className="ml-2 p-1.5 rounded-lg"
             >
