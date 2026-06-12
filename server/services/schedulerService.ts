@@ -17,7 +17,7 @@ export const initScheduler = () => {
       console.log(`Scheduler tick at ${now.toISOString()} - due posts: ${postsToPublish.length}`);
 
       for (const post of postsToPublish) {
-        // Atomic claim — status "publishing" set karo pehle
+        // Atomic claim
         const claimed = await Post.findOneAndUpdate(
           { _id: post._id, status: "scheduled" },
           { $set: { status: "publishing" } },
@@ -29,7 +29,6 @@ export const initScheduler = () => {
           continue;
         }
 
-        // Find all connected Zernio accounts for this post's platforms
         const accounts = await Account.find({
           user: claimed.user,
           platform: { $in: claimed.platform },
@@ -45,15 +44,19 @@ export const initScheduler = () => {
 
         console.log(`Publishing post ${claimed._id} to ${accounts.length} platform(s) — media: ${claimed.mediaUrl || "none"}`);
 
+        // Build mediaItems in Zernio format: [{ type, url }]
+        const mediaItems = claimed.mediaUrl
+          ? [{ type: (claimed.mediaType as "image" | "video") || "image", url: claimed.mediaUrl }]
+          : undefined;
+
         // Per-platform publish — har platform ke liye alag Zernio call
         let allSuccess = true;
         const publishedPlatforms: string[] = [];
 
         for (const account of accounts) {
-          const singlePayload = {
+          const singlePayload: any = {
             content: claimed.content,
             publishNow: true,
-            ...(claimed.mediaUrl ? { mediaUrls: [claimed.mediaUrl] } : {}),
             platforms: [
               {
                 platform: account.platform,
@@ -61,6 +64,10 @@ export const initScheduler = () => {
               },
             ],
           };
+
+          if (mediaItems) {
+            singlePayload.mediaItems = mediaItems;
+          }
 
           try {
             const response = await zernio.posts.createPost({
@@ -82,7 +89,6 @@ export const initScheduler = () => {
           }
         }
 
-        // Update post status + activity log
         if (allSuccess) {
           await Post.findByIdAndUpdate(claimed._id, { status: "published" });
 
