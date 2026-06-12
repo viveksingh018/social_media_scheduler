@@ -14,6 +14,8 @@ export const initScheduler = () => {
         scheduledFor: { $lte: now },
       });
 
+      console.log(`Scheduler tick at ${now.toISOString()} - due posts: ${postsToPublish.length}`);
+
       for (const post of postsToPublish) {
         // Fix 1: Atomic claim — status "publishing" set karo pehle
         // Taaki overlapping cron ticks ya multiple server instances same post na uthayein
@@ -52,16 +54,7 @@ export const initScheduler = () => {
           const payload = {
             content: claimed.content,
             publishNow: true,
-            ...(claimed.mediaUrl
-              ? {
-                  mediaItems: [
-                    {
-                      type: claimed.mediaType || "image",
-                      url: claimed.mediaUrl,
-                    },
-                  ],
-                }
-              : {}),
+            ...(claimed.mediaUrl ? { mediaUrls: [claimed.mediaUrl] } : {}),
             platforms: zernioPlatforms,
           };
 
@@ -89,11 +82,8 @@ export const initScheduler = () => {
           });
 
         } catch (err: any) {
-          console.error(
-            `Failed to publish post ${claimed._id}:`,
-            err?.response?.data || err?.message || err
-          );
-
+          console.error(`Failed to publish post ${claimed._id}:`, err?.response?.data || err?.message || err);
+          console.error("Zernio publish payload:", JSON.stringify(payload, null, 2));
           await Post.findByIdAndUpdate(claimed._id, { status: "failed" });
         }
       }

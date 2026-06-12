@@ -1,7 +1,12 @@
 import { Zernio } from '@zernio/node'
 
+const apiKey = process.env.ZERNIO_API_KEY || ""
+if (!apiKey) {
+  console.warn("Warning: ZERNIO_API_KEY is not set. Zernio API calls will fail.")
+}
+
 const zernio = new Zernio({
-  apiKey: process.env.ZERNIO_API_KEY || "", 
+  apiKey,
   baseURL: "https://zernio.com/api"
 })
 
