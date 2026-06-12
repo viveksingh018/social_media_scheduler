@@ -1,48 +1,86 @@
-# social_media_scheduler
+# Social Media Scheduler
 
-A social media scheduler web application built with React, Vite, TypeScript, and Tailwind CSS.
+A full-stack social media scheduling application with a React + TypeScript frontend and an Express + MongoDB backend.
 
-**Status:** Frontend Complete — 
+## Overview
 
-## Project Work
+This project includes:
 
-- Created the frontend application inside `client/`
-- Built the main pages and routes:
-  - `Home`
-  - `Dashboard`
-  - `Accounts`
-  - `Scheduler`
-  - `AIComposer`
-  - `Login`
-- Implemented a responsive layout with:
-  - `Sidebar`
-  - `Layout`
-  - `PlatformPickerModal`
-- Developed home section components for marketing pages:
-  - `Hero`
-  - `Features`
-  - `HowItWorks`
-  - `Pricing`
-  - `Testimonials`
-  - `Footer`
-- Added account list and platform selection UI components
-- Configured Tailwind CSS for styling and responsive design
-- Integrated icon libraries with Lucide and Simple Icons
-- Set up Vite for fast development and build performance
+- `client/` — React + Vite + TypeScript frontend
+- `server/` — Express.js + TypeScript backend API
+- Social account management via Zernio OAuth
+- Post scheduling and publishing automation
+- AI-powered content generation with Gemini + Hugging Face image generation
+- File uploads via Cloudinary
+
+## What’s Included
+
+### Frontend
+
+- Pages: `Home`, `Login`, `Dashboard`, `Accounts`, `Scheduler`, `AIComposer`
+- Shared layout components: `Layout`, `Sidebar`, `PlatformPickerModal`, `AccountList`
+- Authentication state management with `AuthContext`
+- API integration using Axios and protected routes
+- Responsive UI built with Tailwind CSS
+
+### Backend
+
+- User auth: register + login with JWT
+- Account sync: connect social platforms via Zernio and sync account metadata
+- Post management: schedule, store, and publish posts
+- AI generation: create post content and optional images
+- Scheduler service: runs every minute with `node-cron` to publish due posts
+- Cloudinary upload support for generated and user media
 
 ## Tech Stack
 
-- React 19
-- TypeScript 6
-- Vite 4
-- Tailwind CSS 4
-- React Router DOM 7
-- Lucide icons
-- Simple Icons
+- Frontend:
+  - React 19
+  - TypeScript 6
+  - Vite 4
+  - Tailwind CSS 4
+  - React Router DOM 7
+  - Lucide icons
+  - react-hot-toast
 
-## Getting Started
+- Backend:
+  - Node.js + Express 5
+  - TypeScript 6
+  - Mongoose
+  - JWT auth
+  - Zernio integration
+  - Google Gemini API
+  - Hugging Face inference
+  - Cloudinary
+  - node-cron
 
-From the workspace root:
+## Setup
+
+### Prerequisites
+
+- Node.js 20+ (or compatible with installed packages)
+- npm
+- MongoDB instance
+- `.env` file in `server/` with values for:
+  - `MONGODB_URI`
+  - `JWT_SECRET`
+  - `CLOUDINARY_CLOUD_NAME`
+  - `CLOUDINARY_API_KEY`
+  - `CLOUDINARY_API_SECRET`
+  - `GEMINI_API_KEY`
+  - `HUGGINGFACE_API_KEY`
+
+### Run locally
+
+From project root:
+
+```bash
+cd server
+npm install
+npm run start
+```
+
+In another terminal:
 
 ```bash
 cd client
@@ -50,28 +88,45 @@ npm install
 npm run dev
 ```
 
-Open the local Vite URL shown in the terminal.
-
-## Build
+### Build
 
 ```bash
 cd client
 npm run build
 ```
 
-## Project Structure
+```bash
+cd server
+npm run build
+```
 
-- `client/`
-  - `src/`
-    - `components/` - reusable UI components and layout
-    - `pages/` - route pages for the application
-    - `assets/` - asset helpers and imports
-    - `main.tsx` - application entry point
-    - `App.tsx` - app routing and layout
-  - `public/` - static public assets
-  - `index.html` - Vite HTML template
-  - `vite.config.ts` - Vite configuration
+## API Endpoints
+
+- `POST /api/auth/register` — register user
+- `POST /api/auth/login` — login user
+- `GET /api/oauth/:platform/url` — get Zernio auth URL
+- `GET /api/oauth/sync` — sync connected accounts
+- `GET /api/accounts` — list user accounts
+- `DELETE /api/accounts/:id` — disconnect account
+- `GET /api/posts` — list posts
+- `POST /api/posts` — schedule a post
+- `POST /api/posts/generate` — generate AI content
+- `GET /api/posts/generations` — list generated content
+- `GET /api/activity` — recent activity feed
 
 ## Notes
 
-This README reflects the current frontend project work and structure. The frontend has been completed. As development continues, feature details, backend integration, deployment instructions, and usage documentation will be expanded.
+- The frontend currently handles authenticated navigation and scheduling flows.
+- The backend includes a scheduler service that publishes due posts automatically.
+- OAuth and content generation require valid Zernio, Gemini, Cloudinary, and HuggingFace or other image generations    credentials.
+- Some UI and backend code uses `any`; consider replacing with stricter TypeScript types for production readiness.
+
+## Improvements
+
+Potential next steps:
+
+- Add loading/error handling in more components
+- Improve type safety across API payloads
+- Add tests for backend routes and frontend pages
+- Add role-based access or multi-user support
+- Add deployment instructions for Vercel/Netlify and a hosted backend
