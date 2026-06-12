@@ -6,7 +6,7 @@ import { ActivityLog } from "../models/ActivityLog.js";
 
 // Helper: Transform media URL per platform's aspect ratio requirements
 const getMediaUrlForPlatform = (
-  mediaUrl: string | undefined,
+  mediaUrl: string | null | undefined,
   mediaType: "image" | "video" | undefined,
   platform: string
 ): string | undefined => {
