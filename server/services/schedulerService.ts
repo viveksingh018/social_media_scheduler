@@ -31,6 +31,7 @@ export const initScheduler = () => {
           continue;
         }
 
+        let payload: any;
         try {
           // Find all connected Zernio accounts for this post's platforms
           const accounts = await Account.find({
@@ -51,7 +52,7 @@ export const initScheduler = () => {
             accountId: acc.zernioAccountId,
           }));
 
-          const payload = {
+          payload = {
             content: claimed.content,
             publishNow: true,
             ...(claimed.mediaUrl ? { mediaUrls: [claimed.mediaUrl] } : {}),
