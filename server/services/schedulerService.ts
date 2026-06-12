@@ -4,6 +4,48 @@ import { Account } from "../models/Account.js";
 import zernio from "../config/zernio.js";
 import { ActivityLog } from "../models/ActivityLog.js";
 
+// Helper: Transform media URL per platform's aspect ratio requirements
+const getMediaUrlForPlatform = (
+  mediaUrl: string | undefined,
+  mediaType: "image" | "video" | undefined,
+  platform: string
+): string | undefined => {
+  if (!mediaUrl) return undefined;
+
+  // Videos don't need aspect ratio transform
+  if (mediaType === "video") return mediaUrl;
+
+  // Only transform Cloudinary URLs
+  if (!mediaUrl.includes("res.cloudinary.com")) return mediaUrl;
+
+  // Instagram requires aspect ratio between 0.75 and 1.91
+  // Square 1:1 (1080x1080) is the safest
+  if (platform === "instagram") {
+    return mediaUrl.replace(
+      "/upload/",
+      "/upload/ar_1:1,c_fill,g_auto,w_1080,h_1080/"
+    );
+  }
+
+  // LinkedIn accepts 1.91:1 landscape
+  if (platform === "linkedin") {
+    return mediaUrl.replace(
+      "/upload/",
+      "/upload/ar_1.91:1,c_fill,g_auto,w_1200,h_627/"
+    );
+  }
+
+  // Facebook: similar to Instagram
+  if (platform === "facebook") {
+    return mediaUrl.replace(
+      "/upload/",
+      "/upload/ar_1:1,c_fill,g_auto,w_1080,h_1080/"
+    );
+  }
+
+  return mediaUrl;
+};
+
 export const initScheduler = () => {
   cron.schedule("* * * * *", async () => {
     try {
@@ -44,16 +86,22 @@ export const initScheduler = () => {
 
         console.log(`Publishing post ${claimed._id} to ${accounts.length} platform(s) — media: ${claimed.mediaUrl || "none"}`);
 
-        // Build mediaItems in Zernio format: [{ type, url }]
-        const mediaItems = claimed.mediaUrl
-          ? [{ type: (claimed.mediaType as "image" | "video") || "image", url: claimed.mediaUrl }]
-          : undefined;
-
-        // Per-platform publish — har platform ke liye alag Zernio call
+        // Per-platform publish — har platform ke liye alag Zernio call + alag media URL
         let allSuccess = true;
         const publishedPlatforms: string[] = [];
 
         for (const account of accounts) {
+          // Platform-specific media URL (Instagram ko 1:1, LinkedIn ko 1.91:1)
+          const platformMediaUrl = getMediaUrlForPlatform(
+            claimed.mediaUrl,
+            claimed.mediaType as "image" | "video" | undefined,
+            account.platform
+          );
+
+          const mediaItems = platformMediaUrl
+            ? [{ type: (claimed.mediaType as "image" | "video") || "image", url: platformMediaUrl }]
+            : undefined;
+
           const singlePayload: any = {
             content: claimed.content,
             publishNow: true,
