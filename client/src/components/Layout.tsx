@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { MenuIcon } from "lucide-react";
 
 import Sidebar from "./Sidebar";
+import { useAuth } from "../context/AuthContext";
 
 // Page titles based on current route
 const pageTitles: Record<string, string> = {
@@ -13,13 +14,26 @@ const pageTitles: Record<string, string> = {
 };
 
 const Layout = () => {
+
+  const { isAuthenticated, isLoading } = useAuth()
+
   const location = useLocation();
-  const title =
-    pageTitles[location.pathname] || "SocialAI";
+  const title = pageTitles[location.pathname] || "SocialAI";
 
   // Mobile sidebar state
-  const [isMobileMenuOpen, setIsMobileMenuOpen] =
-    useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <div className="size-8 border-4 border-red-50 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (!isAuthenticated){
+    return <Navigate to="/login" replace />
+  }
 
   return (
     <div className="flex h-screen bg-slate-50">
