@@ -32,17 +32,15 @@ export const initScheduler = () => {
         try {
           // Find all connected Zernio accounts for this post's platforms
           const accounts = await Account.find({
-            user: post.user,
-            platform: { $in: post.platform },
+            user: claimed.user,
+            platform: { $in: claimed.platform },
             status: "connected",
             zernioAccountId: { $exists: true },
           });
 
           if (accounts.length === 0) {
-            console.log(`No connected Zernio accounts found for post ${post._id}`);
-            // No accounts — mark as failed
-            post.status = "failed";
-            await post.save();
+            console.log(`No connected Zernio accounts found for post ${claimed._id}`);
+            await Post.findByIdAndUpdate(claimed._id, { status: "failed" });
             continue;
           }
 
@@ -52,14 +50,14 @@ export const initScheduler = () => {
           }));
 
           const payload = {
-            content: post.content,
+            content: claimed.content,
             publishNow: true,
-            ...(post.mediaUrl
+            ...(claimed.mediaUrl
               ? {
                   mediaItems: [
                     {
-                      type: post.mediaType || "image",
-                      url: post.mediaUrl,
+                      type: claimed.mediaType || "image",
+                      url: claimed.mediaUrl,
                     },
                   ],
                 }
@@ -67,7 +65,7 @@ export const initScheduler = () => {
             platforms: zernioPlatforms,
           };
 
-          console.log(`Publishing post ${post._id} to Zernio with media: ${post.mediaUrl || "none"}`);
+          console.log(`Publishing post ${claimed._id} to Zernio with media: ${claimed.mediaUrl || "none"}`);
 
           const response = await zernio.posts.createPost({
             body: payload,
@@ -81,27 +79,22 @@ export const initScheduler = () => {
 
           console.log(`Zernio post created: ${publishedPost._id || publishedPost.id}`);
 
-          // Mark post as published
-          post.status = "published";
-          await post.save();
+          await Post.findByIdAndUpdate(claimed._id, { status: "published" });
 
-          // Log activity
           await ActivityLog.create({
-            user: post.user,
+            user: claimed.user,
             actionType: "POST_PUBLISHED",
             description: `Published post to ${accounts.map((a) => a.platform).join(", ")}`,
-            relatedPost: post._id,
+            relatedPost: claimed._id,
           });
 
         } catch (err: any) {
           console.error(
-            `Failed to publish post ${post._id}:`,
-            err?.response?.data || err?.message
+            `Failed to publish post ${claimed._id}:`,
+            err?.response?.data || err?.message || err
           );
 
-          // Mark post as failed so it won't be retried automatically
-          post.status = "failed";
-          await post.save();
+          await Post.findByIdAndUpdate(claimed._id, { status: "failed" });
         }
       }
 
@@ -110,10 +103,8 @@ export const initScheduler = () => {
       }
 
     } catch (error: any) {
-      // Fix 2: error: any — proper logging
       console.error("Scheduler error:", error?.message || error);
     }
-  });
-
+  }, { timezone: "UTC" });
   console.log("Scheduler service initialized.");
 };
